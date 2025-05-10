@@ -37,7 +37,7 @@ def plot_feature_distribution_by_target(df, output_dir='plots/01_basic_eda', fil
 
     logger.info(f"Plotting feature distribution by target")
     plt.figure(figsize=(17, 14))
-    palette = sns.color_palette("coolwarm", as_cmap=True)
+    palette = sns.color_palette("coolwarm", n_colors=df['target'].nunique())
     for i, feature in enumerate(df.columns.drop(['dataset', 'target']), 1):
         plt.subplot(5, 4, i)
         sns.kdeplot(data=df, x=feature, hue='target', common_norm=False,

@@ -125,6 +125,16 @@ class Processor:
                 df_clean.loc[df_clean[col] == 0, col] = np.nan
 
         return df_clean
+    
+    def convert_target_to_binary(self, df):
+        if 'target' not in df.columns:
+            logger.warning("No 'target' column found to binarize.")
+            return df
+        logger.info("Converting target to binary classification (0 vs 1+).")
+        df = df.copy()
+        df['target'] = df['target'].apply(lambda x: 1 if x > 0 else 0)
+        return df
+
 
     def impute_missing_values(self, df):
         logger.info("Imputing missing values...")

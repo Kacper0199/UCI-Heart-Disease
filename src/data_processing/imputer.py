@@ -61,6 +61,9 @@ class Imputer:
                 self.fitted_params[col] = mode_val[0]
                 logger.info(
                     f"Calculated mode for '{col}': {self.fitted_params[col]}")
+                
+            elif strategy == 'mice':
+                pass
 
             elif strategy == 'knn':
                 if self.numeric_cols_knn is None:

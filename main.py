@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg')
 import pandas as pd
 from src.data_processing.processor import Processor
 from src.data_processing.data_splitting import split_data
@@ -31,7 +33,7 @@ def main(source_key=None, feature_engineering=True, run_visualizations=False):
     logger.info("Starting analysis with refactored pipeline...")
     source_str = 'uci' if source_key is None else source_key
 
-    # (I) Loading and cleaning data
+    # (I) Loading, cleaning data and convert target to binary
     logger.info("(I) Loading and cleaning data...")
     processor = Processor(DATA_CONFIG_PATH, PROCESSED_DATA_PATH)
 
@@ -45,6 +47,8 @@ def main(source_key=None, feature_engineering=True, run_visualizations=False):
     if df_cleaned is None:
         logger.error("Data loading and cleaning failed.")
         return
+    
+    df_cleaned = processor.convert_target_to_binary(df_cleaned)
 
     # Basic EDA Visualizations on cleaned and whole dataset
     if run_visualizations:
