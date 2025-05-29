@@ -7,12 +7,14 @@ from src.data_processing.imputer import Imputer
 from src.data_processing.data_transformation import DataTransformer
 from src.data_processing.pca_transformer import PCATransformer
 from src.models.model_tuner import ModelTunerEvaluator
+from src.train.trainer import Trainer 
 from loggers import logger_main as logger
 import os
 from src.visualization.missing_values import plot_missing_values_bar_plot, plot_missing_values_matrix_plot, plot_missing_values_heatmap
 from src.visualization.distributions import plot_feature_distribution, plot_feature_distribution_by_target
 from src.visualization.correlation import plot_correlation_matrix, plot_correlation_coefficients
 from src.visualization.evaluation import plot_metric_comparison, plot_confusion_matrix, plot_feature_importance
+
 
 
 # Config paths
@@ -27,6 +29,9 @@ PROCESSED_DATA_PATH = 'data/processed'
 EDA_PATH = 'plots/01_basic_eda'
 DIM_REDUCTION_PATH = 'plots/02_dimensionality_reduction'
 EVALUATION_PLOT_PATH = 'plots/03_evaluation'
+
+# Results path
+RESULTS_PATH = 'results'
 
 
 def main(source_key=None, feature_engineering=True, run_visualizations=False):
@@ -184,34 +189,95 @@ def main(source_key=None, feature_engineering=True, run_visualizations=False):
 
     logger.info("PCA applied to train, validation, and test datasets.")
 
-    # (VII) Model tuning and evaluation
-    logger.info("(VII) Model tuning and evaluation...")
+
+    # (VII) Base model training
+    logger.info("(VII) Model training...")
+
+    trainer = Trainer(
+    X_train=X_train_pca, y_train=y_train_pca,
+    X_val=X_val_pca, y_val=y_val_pca,
+    X_test=X_test_pca, y_test=y_test_pca,
+    training_config_path=TRAINING_CONFIG_PATH
+    )
+
+    base_results = {}
+
+    model_names = list(trainer.config.get("models", {}).keys())
+
+    for model_name in model_names:
+        model_cfg = trainer.config["models"].get(model_name, {})
+        model, metrics = trainer.train(model_name)
+
+        if model is None:
+            logger.warning(f"Training failed for model {model_name}")
+            continue
+
+        base_results[model_name] = {
+            "model": model,
+            "metrics": metrics,
+            "static_params": model_cfg.get("params", {}) or trainer.get_default_params(model_name),
+            "tuned_params": None,
+            "final_params": model_cfg.get("params", {}) or trainer.get_default_params(model_name)
+        }
+
+    logger.info("Base model training completed.")
+
+
+    # (VIII) Model tuning and training best models
+    logger.info("(VIII) Model tuning...")
+
     tuner_evaluator = ModelTunerEvaluator(
         X_train=X_train_pca, y_train=y_train_pca,
         X_val=X_val_pca, y_val=y_val_pca,
         X_test=X_test_pca, y_test=y_test_pca,
-        n_trials=5
+        n_trials=50
     )
 
-    models_to_run = ['svm', 'random_forest', 'lightgbm']
-    results = {}
+    results = tuner_evaluator.run_from_config(TRAINING_CONFIG_PATH)
 
-    for model_name in models_to_run:
-        model, best_params, metrics = tuner_evaluator.tune_and_evaluate(
-            model_name)
-        if model is None:
-            logger.error(f"Tuning and evaluation failed for {model_name}.")
-            continue
-        results[model_name] = {
-            'model': model,
-            'best_params': best_params,
-            'metrics': metrics
+
+    logger.info("Completed tuning and evaluation for models with tune: true.")
+
+    # (IX) Save results to CSV
+    os.makedirs(RESULTS_PATH, exist_ok=True)
+
+    # Save base results
+    base_df = pd.DataFrame.from_dict({
+        name: {
+            **data['metrics'],
+            **{f'static_{k}': v for k, v in data['static_params'].items()},
+            **{f'final_{k}': v for k, v in data['final_params'].items()}
         }
+        for name, data in base_results.items()
+    }, orient='index')
+    base_index = 1
+    while os.path.exists(os.path.join(RESULTS_PATH, f'base_results({base_index}).csv')):
+        base_index += 1
+    base_path = os.path.join(RESULTS_PATH, f'base_results({base_index}).csv')
+    base_df.to_csv(base_path)
+    logger.info(f"Base model results saved to {base_path}")
 
-    logger.info("Completed tuning and evaluation for all specified models.")
+    # Save tuned results
+    tuned_df = pd.DataFrame.from_dict({
+        name: {
+            **data['metrics'],
+            **{f'static_{k}': v for k, v in data['static_params'].items()},
+            **{f'tuned_{k}': v for k, v in (data['tuned_params'] or {}).items()},
+            **{f'final_{k}': v for k, v in data['final_params'].items()}
+        }
+        for name, data in results.items()
+    }, orient='index')
+    tuned_index = 1
+    while os.path.exists(os.path.join(RESULTS_PATH, f'tuned_results({tuned_index}).csv')):
+        tuned_index += 1
+    tuned_path = os.path.join(RESULTS_PATH, f'tuned_results({tuned_index}).csv')
+    tuned_df.to_csv(tuned_path)
+    logger.info(f"Tuned model results saved to {tuned_path}")
+
+
 
     # (VIII) Tuned model visualization
-    if run_visualizations and results:
+    '''if run_visualizations and results:
         logger.info("(VIII) Generating tuned model metrics visualizations...")
         os.makedirs(EVALUATION_PLOT_PATH, exist_ok=True)
 
@@ -243,7 +309,7 @@ def main(source_key=None, feature_engineering=True, run_visualizations=False):
                     top_n=5,
                     source_str=f'{source_str}_'
                 )
-        logger.info("Completed generating evaluation visualizations.")
+        logger.info("Completed generating evaluation visualizations.")'''
 
     logger.info("Analysis finished successfully.")
 

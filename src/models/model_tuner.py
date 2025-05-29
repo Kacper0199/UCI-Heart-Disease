@@ -1,5 +1,6 @@
+import yaml
 import optuna
-import optuna
+import optuna.visualization as vis
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
 from sklearn.svm import SVC
@@ -21,6 +22,7 @@ class ModelTunerEvaluator:
         self.y_test = y_test
         self.n_splits = n_splits
         self.n_trials = n_trials
+        self.studies = {}
         self.random_state = random_state
         self.cv = StratifiedKFold(
             n_splits=self.n_splits, shuffle=True, random_state=self.random_state)
@@ -137,17 +139,44 @@ class ModelTunerEvaluator:
         return np.mean(scores)
 
     def _evaluate_model(self, model, X, y, prefix):
+        from sklearn.metrics import (
+            accuracy_score, precision_score, recall_score, f1_score,
+            roc_auc_score, confusion_matrix
+        )
+
         y_pred = model.predict(X)
+
+        try:
+            y_prob = model.predict_proba(X)[:, 1]
+            auc = roc_auc_score(y, y_prob)
+        except (AttributeError, IndexError, ValueError):
+            auc = None
+
+        try:
+            tn, fp, fn, tp = confusion_matrix(y, y_pred).ravel()
+        except ValueError:
+            tn = fp = fn = tp = None
+
         metrics = {
             f'{prefix}_accuracy': accuracy_score(y, y_pred),
             f'{prefix}_precision': precision_score(y, y_pred, average='weighted', zero_division=0),
             f'{prefix}_recall': recall_score(y, y_pred, average='weighted', zero_division=0),
-            f'{prefix}_f1_score': f1_score(y, y_pred, average='weighted', zero_division=0)
+            f'{prefix}_f1_score': f1_score(y, y_pred, average='weighted', zero_division=0),
+            f'{prefix}_auc_roc': auc,
+            f'{prefix}_tp': int(tp) if tp is not None else None,
+            f'{prefix}_tn': int(tn) if tn is not None else None,
+            f'{prefix}_fp': int(fp) if fp is not None else None,
+            f'{prefix}_fn': int(fn) if fn is not None else None
         }
+
         return metrics
+
 
     def tune_and_evaluate(self, model_name):
         logger.info(f"Starting hyperparameter tuning for {model_name}...")
+
+        supported_types = ['svm', 'random_forest', 'lightgbm']
+        model_type = next((m for m in supported_types if model_name.startswith(m)), None)
 
         objective_map = {
             'svm': self._objective_svm,
@@ -155,53 +184,89 @@ class ModelTunerEvaluator:
             'lightgbm': self._objective_lightgbm
         }
 
-        if model_name not in objective_map:
-            logger.error(f"Unsupported model type: {model_name}")
+        if model_type not in objective_map:
+            logger.error(f"Unsupported model type: {model_type}")
             return None, None, None
 
         study = optuna.create_study(
-            direction='maximize', sampler=optuna.samplers.TPESampler(seed=self.random_state))
-        study.optimize(objective_map[model_name],
-                       n_trials=self.n_trials, n_jobs=-1)
+            direction='maximize',
+            sampler=optuna.samplers.TPESampler(seed=self.random_state)
+        )
+        study.optimize(objective_map[model_type], n_trials=self.n_trials, n_jobs=-1)
+
+        self.studies[model_name] = study
 
         best_params = study.best_params
         logger.info(f"Best hyperparameters for {model_name}: {best_params}")
 
-        logger.info(
-            f"Training final {model_name} model with best hyperparameters...")
-        if model_name == 'svm':
-            final_model = SVC(**best_params, class_weight='balanced',
-                              probability=True, random_state=self.random_state)
-        elif model_name == 'random_forest':
-            final_model = RandomForestClassifier(
-                **best_params, class_weight='balanced', random_state=self.random_state, n_jobs=-1)
-        elif model_name == 'lightgbm':
-            final_model = LGBMClassifier(
-                **best_params, class_weight='balanced', random_state=self.random_state, n_jobs=-1, verbose=-1)
-        else:
-            logger.error(f"Cannot instantiate final model for {model_name}")
-            return None, None, None
+        logger.info(f"Training final {model_name} model with best hyperparameters...")
+        if model_type == 'svm':
+            final_model = SVC(**best_params, class_weight='balanced', probability=True, random_state=self.random_state)
+        elif model_type == 'random_forest':
+            final_model = RandomForestClassifier(**best_params, class_weight='balanced', random_state=self.random_state, n_jobs=-1)
+        elif model_type == 'lightgbm':
+            final_model = LGBMClassifier(**best_params, class_weight='balanced', random_state=self.random_state, n_jobs=-1, verbose=-1)
 
-        # Tuned model fit
         final_model.fit(self.X_train, self.y_train)
 
-        # Model saving
-        model_filename = os.path.join(
-            self.models_dir, f'{model_name}_tuned_model.joblib')
+        model_filename = os.path.join(self.models_dir, f'{model_name}_tuned_model.joblib')
         joblib.dump(final_model, model_filename)
         logger.info(f"Saved tuned {model_name} model to {model_filename}")
 
-        # Evaluation on train, validation, and test datasets
         logger.info(f"Evaluating final {model_name} model...")
-        train_metrics = self._evaluate_model(
-            final_model, self.X_train, self.y_train, 'train')
-        val_metrics = self._evaluate_model(
-            final_model, self.X_val, self.y_val, 'val')
-        test_metrics = self._evaluate_model(
-            final_model, self.X_test, self.y_test, 'test')
+        train_metrics = self._evaluate_model(final_model, self.X_train, self.y_train, 'train')
+        val_metrics = self._evaluate_model(final_model, self.X_val, self.y_val, 'val')
+        test_metrics = self._evaluate_model(final_model, self.X_test, self.y_test, 'test')
 
         all_metrics = {**train_metrics, **val_metrics, **test_metrics}
-        logger.info(
-            f"{model_name} evaluation complete. Metrics: {all_metrics}")
+        logger.info(f"{model_name} evaluation complete. Metrics: {all_metrics}")
 
         return final_model, best_params, all_metrics
+
+
+    
+    def run_from_config(self, config_path='config/training_config.yaml', plots_path = 'results/optuna'):
+        import yaml
+        with open(config_path) as f:
+            config = yaml.safe_load(f)
+
+        models_cfg = config['models']
+        results = {}
+
+        for model_name, model_cfg in models_cfg.items():
+            tune = model_cfg.get('tune', False)
+            static_params = model_cfg.get('params', {})
+
+            if not tune:
+                logger.info(f"Skipping tuning for {model_name} (tune: false)")
+                continue
+
+            logger.info(f"Tuning model: {model_name}")
+            model, best_params, metrics = self.tune_and_evaluate(model_name)
+
+            if model is None:
+                logger.error(f"Tuning failed for {model_name}")
+                continue
+
+            self.save_tuning_plots(self.studies[model_name], model_name, output_dir=plots_path)
+
+            results[model_name] = {
+                'model': model,
+                'static_params': static_params,
+                'tuned_params': best_params,
+                'final_params': best_params,
+                'metrics': metrics
+            }
+
+        return results
+    
+    def save_tuning_plots(self, study, model_name, output_dir='results/optuna'):
+
+        os.makedirs(output_dir, exist_ok=True)
+
+        vis.plot_optimization_history(study).write_html(f"{output_dir}/{model_name}_opt_history.html")
+        vis.plot_param_importances(study).write_html(f"{output_dir}/{model_name}_param_importance.html")
+        vis.plot_contour(study).write_html(f"{output_dir}/{model_name}_contour.html")
+        vis.plot_parallel_coordinate(study).write_html(f"{output_dir}/{model_name}_parallel.html")
+        vis.plot_slice(study).write_html(f"{output_dir}/{model_name}_slice.html")
+
