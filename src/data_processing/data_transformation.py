@@ -4,7 +4,6 @@ import yaml
 from sklearn.preprocessing import StandardScaler, PowerTransformer, MinMaxScaler
 from loggers import logger_transformer as logger
 
-
 class DataTransformer:
     def __init__(self, config_path='config/processing_config.yaml'):
         self.config = self._load_config(config_path)

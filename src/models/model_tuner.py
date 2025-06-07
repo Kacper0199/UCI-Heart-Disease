@@ -1,4 +1,3 @@
-import yaml
 import optuna
 import optuna.visualization as vis
 import numpy as np

@@ -107,7 +107,7 @@ models:
       max_features: sqrt
       criterion: gini
 
-  random_forest_2:  # zmiana: mniejsze max_depth
+  random_forest_2:
     tune: false
     params:
       n_estimators: 300
@@ -116,7 +116,7 @@ models:
       min_samples_leaf: 5
       max_features: sqrt
 
-  random_forest_3:  # zmiana: większe max_depth
+  random_forest_3:
     tune: false
     params:
       n_estimators: 300
@@ -125,7 +125,7 @@ models:
       min_samples_leaf: 5
       max_features: sqrt
 
-  random_forest_4:  # zmiana: criterion -> entropy
+  random_forest_4:
     tune: false
     params:
       n_estimators: 300
@@ -135,7 +135,7 @@ models:
       max_features: sqrt
       criterion: entropy
 
-  random_forest_5:  # zmiana: criterion -> log_loss
+  random_forest_5:
     tune: false
     params:
       n_estimators: 300
@@ -146,7 +146,7 @@ models:
       criterion: log_loss
 
 
-  random_forest_6:  # zmiana: mniejsze min_samples_leaf
+  random_forest_6:
     tune: false
     params:
       n_estimators: 300
@@ -155,7 +155,7 @@ models:
       min_samples_leaf: 2
       max_features: sqrt
 
-  random_forest_7:  # zmiana: większe min_samples_leaf
+  random_forest_7:
     tune: false
     params:
       n_estimators: 300
@@ -164,7 +164,7 @@ models:
       min_samples_leaf: 8
       max_features: sqrt
 
-  random_forest_8:  # zmiana: mniejsza liczba estymatorów
+  random_forest_8:
     tune: false
     params:
       n_estimators: 200
@@ -173,7 +173,7 @@ models:
       min_samples_leaf: 5
       max_features: sqrt
 
-  random_forest_9:  # zmiana: większa liczba estymatorów
+  random_forest_9:
     tune: false
     params:
       n_estimators: 500
@@ -182,7 +182,7 @@ models:
       min_samples_leaf: 5
       max_features: sqrt
 
-  random_forest_10:  # zmiana: max_features na log2
+  random_forest_10:
     tune: false
     params:
       n_estimators: 300
@@ -209,7 +209,7 @@ models:
       class_weight: balanced
       random_state: 0
 
-  lightgbm_2:  # zmiana: mniejsze num_leaves
+  lightgbm_2:
     tune: false
     params:
       num_leaves: 7
@@ -224,7 +224,7 @@ models:
       class_weight: balanced
       random_state: 0
 
-  lightgbm_3:  # zmiana: większe num_leaves
+  lightgbm_3:
     tune: false
     params:
       n_estimators: 300
@@ -239,7 +239,7 @@ models:
       class_weight: balanced
       random_state: 0
 
-  lightgbm_4:  # zmiana: większe max_depth
+  lightgbm_4:
     tune: false
     params:
       n_estimators: 300
@@ -254,7 +254,7 @@ models:
       class_weight: balanced
       random_state: 0
 
-  lightgbm_5:  # zmiana: mniejsze n estimators
+  lightgbm_5:
     tune: false
     params:
       n_estimators: 100
@@ -269,7 +269,7 @@ models:
       class_weight: balanced
       random_state: 0
 
-  lightgbm_6:  # zmiana: mniejszy learning_rate
+  lightgbm_6:
     tune: false
     params:
       n_estimators: 300
@@ -284,7 +284,7 @@ models:
       class_weight: balanced
       random_state: 0
 
-  lightgbm_7:  # zmiana: większy learning_rate
+  lightgbm_7:
     tune: false
     params:
       n_estimators: 300
@@ -299,7 +299,7 @@ models:
       class_weight: balanced
       random_state: 0
 
-  lightgbm_8:  # zmiana: mniejsze max_depth
+  lightgbm_8:
     tune: false
     params:
       n_estimators: 300
@@ -314,7 +314,7 @@ models:
       class_weight: balanced
       random_state: 0
 
-  lightgbm_9:  # zmiana: większy reg_alpha
+  lightgbm_9:
     tune: false
     params:
       n_estimators: 500
@@ -329,7 +329,7 @@ models:
       class_weight: balanced
       random_state: 0
 
-  lightgbm_10:  # zmiana: większy reg_lambda
+  lightgbm_10:
     tune: false
     params:
       n_estimators: 300
