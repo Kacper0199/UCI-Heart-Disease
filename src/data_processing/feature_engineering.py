@@ -4,7 +4,6 @@ import pandas as pd
 # Framingham Risk Score, based on ATP-III
 # points evaluation
 
-
 def trestbps_points(trestbps, sex):
     points = np.zeros_like(trestbps)
     men = (sex == 1)

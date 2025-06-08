@@ -10,10 +10,9 @@ from src.models.model_tuner import ModelTunerEvaluator
 from src.train.trainer import Trainer 
 from loggers import logger_main as logger
 import os
-from src.visualization.missing_values import plot_missing_values_bar_plot, plot_missing_values_matrix_plot, plot_missing_values_heatmap
+from src.visualization.missing_values import plot_missing_values_bar_plot
 from src.visualization.distributions import plot_feature_distribution, plot_feature_distribution_by_target
 from src.visualization.correlation import plot_correlation_matrix, plot_correlation_coefficients
-from src.visualization.evaluation import plot_metric_comparison, plot_confusion_matrix, plot_feature_importance
 
 
 
@@ -274,42 +273,6 @@ def main(source_key=None, feature_engineering=True, run_visualizations=False):
     tuned_df.to_csv(tuned_path)
     logger.info(f"Tuned model results saved to {tuned_path}")
 
-
-
-    # (VIII) Tuned model visualization
-    '''if run_visualizations and results:
-        logger.info("(VIII) Generating tuned model metrics visualizations...")
-        os.makedirs(EVALUATION_PLOT_PATH, exist_ok=True)
-
-        # Plot metric comparisons
-        plot_metric_comparison(
-            results, EVALUATION_PLOT_PATH, source_str=f'{source_str}_')
-
-        class_names = ['No Disease', 'Disease']
-        feature_names = X_test_pca.columns.tolist()
-
-        for model_name, data in results.items():
-            plot_confusion_matrix(
-                model=data['model'],
-                X_test=X_test_pca,
-                y_test=y_test_pca,
-                model_name=model_name,
-                class_names=class_names,
-                output_dir=EVALUATION_PLOT_PATH,
-                source_str=f'{source_str}_'
-            )
-
-            # Feature importances for ensemble models
-            if model_name in ['random_forest', 'lightgbm']:
-                plot_feature_importance(
-                    model=data['model'],
-                    feature_names=feature_names,
-                    model_name=model_name,
-                    output_dir=EVALUATION_PLOT_PATH,
-                    top_n=5,
-                    source_str=f'{source_str}_'
-                )
-        logger.info("Completed generating evaluation visualizations.")'''
 
     logger.info("Analysis finished successfully.")
 
